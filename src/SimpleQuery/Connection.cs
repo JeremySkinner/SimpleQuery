@@ -31,6 +31,11 @@ namespace SimpleQuery {
 	public class Connection : IDisposable {
 		private bool _shouldDisposeConnection = false;
 
+		public IDbConnection UnderlyingConnection
+		{
+			get { return _underlyingConnection; }
+		}
+
 		private readonly IDbConnection _underlyingConnection;
 		private TextWriter _log = TextWriter.Null;
 
@@ -153,6 +158,22 @@ namespace SimpleQuery {
 				var id = (int) GetLastInsertId(); //TODO: Do not assume int. 
 				var idColumn = mapper.GetIdColumns().Single();
 				idColumn.SetValue(toInsert, id);
+			}
+		}
+
+		public T Scalar<T>(string commandText, params object[] args)
+		{
+			using (var command = _underlyingConnection.CreateCommand()) {
+				command.CommandText = commandText;
+				AddParameters(command, args);
+
+				var result = command.ExecuteScalar();
+				if(result == null || result == DBNull.Value)
+				{
+					return default(T);
+				}
+
+				return (T) result;
 			}
 		}
 

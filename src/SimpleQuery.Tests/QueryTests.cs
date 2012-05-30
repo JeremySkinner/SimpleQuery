@@ -18,6 +18,7 @@
 
 #endregion
 
+using System;
 using System.Linq;
 using NUnit.Framework;
 using Should;
@@ -115,11 +116,12 @@ namespace SimpleQuery.Tests {
 
 		[Test]
 		public void Does_not_map_properties_with_NotMapped_attribute() {
-			using (var db = Connection.Open("Test")) {
+			using (var db = Connection.Open("Test"))
+			{
 				db.Execute("insert into Users (Name) values ('Jeremy')");
 
 				var result = db.Query<User5>("select * from Users").Single();
-				result.Id.ShouldEqual(1);
+				(result.Id > 0).ShouldBeTrue();
 				result.Name.ShouldBeNull();
 			}
 		}
@@ -139,8 +141,8 @@ namespace SimpleQuery.Tests {
 		public void FindById_finds_by_id() {
 			using (var db = Connection.Open("Test")) {
 				db.Execute("insert into Users (Name) values ('Jeremy')");
-				var id = db.GetLastInsertId();
-				User result = db.FindById<User>(id);
+				decimal id = db.GetLastInsertId();
+				var result = db.FindById<User>(id);
 				result.Name.ShouldEqual("Jeremy");
 			}
 		}
@@ -156,6 +158,39 @@ namespace SimpleQuery.Tests {
 			}
 		}
 
+		[Test]
+		public void Correctly_handles_null()
+		{
+			using (var db = Connection.Open("Test"))
+			{
+				db.Log = Console.Out;
+				db.Execute("insert into Users (Name) values(null)");
+				decimal id = db.GetLastInsertId();
+				db.Query<User>("select * from users").Single().Name.ShouldBeNull();
+				db.FindById<User>(id).Name.ShouldBeNull();
+			}
+		}
+
+		[Test]
+		public void Gets_scalar_value()
+		{
+			using(var db = Connection.Open("Test"))
+			{
+				db.Execute("insert into Users (Name) values(null)");
+				var result = db.Scalar<int>("select count(*) from Users");
+				result.ShouldEqual(1);
+			}
+		}
+
+		[Test]
+		public void Gets_scalar_value_null()
+		{
+			using(var db = Connection.Open("Test"))
+			{
+				var result = db.Scalar<int>("select null as foo");
+				result.ShouldEqual(0);
+			}
+		}
 
 		public class CompositeKeyUser {
 			[Key]
