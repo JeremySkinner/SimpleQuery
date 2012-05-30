@@ -1,4 +1,24 @@
-﻿using System;
+﻿#region License
+
+// Copyright (c) Jeremy Skinner (http://www.jeremyskinner.co.uk)
+// 
+// Licensed under the Apache License, Version 2.0 (the "License"); 
+// you may not use this file except in compliance with the License. 
+// You may obtain a copy of the License at 
+// 
+// http://www.apache.org/licenses/LICENSE-2.0 
+// 
+// Unless required by applicable law or agreed to in writing, software 
+// distributed under the License is distributed on an "AS IS" BASIS, 
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+// See the License for the specific language governing permissions and 
+// limitations under the License.
+// 
+// The latest version of this file can be found at https://github.com/JeremySkinner/SimpleQuery
+
+#endregion
+
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
@@ -17,7 +37,7 @@ namespace SimpleQuery {
 		public TextWriter Log {
 			get { return _log; }
 			set {
-				if(value == null) throw new ArgumentNullException("value");
+				if (value == null) throw new ArgumentNullException("value");
 				_log = value;
 			}
 		}
@@ -39,16 +59,16 @@ namespace SimpleQuery {
 			underlyingConnection.ConnectionString = connectionStringElement.ConnectionString;
 			underlyingConnection.Open();
 
-			return new Connection(underlyingConnection) { _shouldDisposeConnection = true };
+			return new Connection(underlyingConnection) {_shouldDisposeConnection = true};
 		}
 
 		public void Dispose() {
-			if(_shouldDisposeConnection)
+			if (_shouldDisposeConnection)
 				_underlyingConnection.Dispose();
 		}
 
 		public int Execute(string commandText, params object[] args) {
-			using(var command = _underlyingConnection.CreateCommand()) {
+			using (var command = _underlyingConnection.CreateCommand()) {
 				command.CommandText = commandText;
 				AddParameters(command, args);
 				Log.WriteLine(command.CommandText);
@@ -67,7 +87,7 @@ namespace SimpleQuery {
 		public IEnumerable<T> Query<T>(string commandText, params object[] args) {
 			var results = new List<T>();
 
-			using(var command = _underlyingConnection.CreateCommand()) {
+			using (var command = _underlyingConnection.CreateCommand()) {
 				command.CommandText = commandText;
 				AddParameters(command, args);
 				IEnumerable<string> columnNames = null;
@@ -75,9 +95,8 @@ namespace SimpleQuery {
 
 				var mapper = Mapper<T>.Create();
 
-				using(var reader = command.ExecuteReader()) {
+				using (var reader = command.ExecuteReader()) {
 					while (reader.Read()) {
-						
 						if (columnNames == null) {
 							columnNames = GetColumnNames(reader).ToList();
 						}
@@ -96,11 +115,12 @@ namespace SimpleQuery {
 
 		public T FindById<T>(object id) {
 			var mapper = Mapper<T>.Create();
-			
+
 			Dictionary<string, object> idParameters;
 
-			if(mapper.HasCompositeKey) {
-				idParameters = new AnonymousTypeDictionary(id).ToDictionary(x => mapper.ConvertPropertyNameToColumnName(x.Key), x=>x.Value );
+			if (mapper.HasCompositeKey) {
+				idParameters = new AnonymousTypeDictionary(id).ToDictionary(x => mapper.ConvertPropertyNameToColumnName(x.Key),
+				                                                            x => x.Value);
 			}
 			else {
 				idParameters = new Dictionary<string, object>();
@@ -110,7 +130,7 @@ namespace SimpleQuery {
 			int paramCount = 0;
 			var whereClauses = new List<string>();
 
-			foreach(var pair in idParameters) {
+			foreach (var pair in idParameters) {
 				whereClauses.Add(string.Format("{0} = @{1}", pair.Key, paramCount++));
 			}
 

@@ -1,4 +1,4 @@
-#region Licence
+#region License
 
 // Copyright (c) Jeremy Skinner (http://www.jeremyskinner.co.uk)
 // 
@@ -13,24 +13,23 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
 // See the License for the specific language governing permissions and 
 // limitations under the License.
+// 
+// The latest version of this file can be found at https://github.com/JeremySkinner/SimpleQuery
 
 #endregion
 
-namespace SimpleQuery.Tests {
-	using System;
-	using System.Data.SqlServerCe;
-	using System.IO;
-	using System.Linq;
-	using NUnit.Framework;
-	using Should;
+using System.Linq;
+using NUnit.Framework;
+using Should;
 
+namespace SimpleQuery.Tests {
 	[TestFixture]
 	public class QueryTests : BaseTest {
 		private string connString = "Data Source='Test.sdf'";
 
 		[SetUp]
 		public void Setup() {
-			using(var db = Connection.Open("Test")) {
+			using (var db = Connection.Open("Test")) {
 				db.Execute("delete from Users");
 			}
 		}
@@ -54,7 +53,7 @@ namespace SimpleQuery.Tests {
 
 		[Test]
 		public void Gets_property_with_remapped_name() {
-			using(var db = Connection.Open("Test")) {
+			using (var db = Connection.Open("Test")) {
 				db.Execute("insert into Users (Name) values ('Jeremy')");
 
 				var results = db.Query<User6>("select * from Users").ToList();
@@ -65,7 +64,7 @@ namespace SimpleQuery.Tests {
 
 		[Test]
 		public void Gets_property_case_insensitively() {
-			using(var db = Connection.Open("Test")) {
+			using (var db = Connection.Open("Test")) {
 				db.Execute("insert into Users (Name) values ('Jeremy')");
 
 				var results = db.Query<User7>("select * from Users").ToList();
@@ -76,7 +75,7 @@ namespace SimpleQuery.Tests {
 
 		[Test]
 		public void Does_not_throw_when_object_does_not_have_property() {
-			using(var db = Connection.Open("Test")) {
+			using (var db = Connection.Open("Test")) {
 				db.Execute("insert into Users (Name) values ('Jeremy')");
 
 				var results = db.Query<User>("select Name as Foo from Users").ToList();
@@ -86,7 +85,7 @@ namespace SimpleQuery.Tests {
 
 		[Test]
 		public void Does_not_throw_when_property_not_settable() {
-			using(var db = Connection.Open("Test")) {
+			using (var db = Connection.Open("Test")) {
 				db.Execute("insert into Users (Name) values ('Jeremy')");
 
 				db.Query<User2>("select Name from Users").ToList();
@@ -105,12 +104,12 @@ namespace SimpleQuery.Tests {
 
 		[Test]
 		public void Throws_when_cannot_instantiate_object() {
-			using(var db = Connection.Open("Test")) {
+			using (var db = Connection.Open("Test")) {
 				db.Execute("insert into Users (Name) values ('Jeremy')");
 
 				var ex = Assert.Throws<MappingException>(() => db.Query<User4>("select * from Users").ToList());
-				ex.Message.ShouldEqual("Could not find a parameterless constructor on the type 'SimpleQuery.Tests.QueryTests+User4'. SimpleQuery can only be used to map types that have a public, parameterless constructor.");
-
+				ex.Message.ShouldEqual(
+					"Could not find a parameterless constructor on the type 'SimpleQuery.Tests.QueryTests+User4'. SimpleQuery can only be used to map types that have a public, parameterless constructor.");
 			}
 		}
 
@@ -127,7 +126,7 @@ namespace SimpleQuery.Tests {
 
 		[Test]
 		public void FindAll_gets_all() {
-			using(var db = Connection.Open("Test")) {
+			using (var db = Connection.Open("Test")) {
 				db.Execute("insert into Users (Name) values ('Jeremy')");
 				db.Execute("insert into Users (Name) values ('Jeremy')");
 
@@ -149,20 +148,22 @@ namespace SimpleQuery.Tests {
 		[Test]
 		public void Loads_by_composite_key() {
 			using (var db = Connection.Open("Test")) {
-				db.Insert(new CompositeKeyUser { Id = 1, Id2 = "foo", Name = "Jeremy"});
-				var result = db.FindById<CompositeKeyUser>(new { Id = 1, Id2 = "foo" });
+				db.Insert(new CompositeKeyUser {Id = 1, Id2 = "foo", Name = "Jeremy"});
+				var result = db.FindById<CompositeKeyUser>(new {Id = 1, Id2 = "foo"});
 				result.Id.ShouldEqual(1);
 				result.Id2.ShouldEqual("foo");
 				result.Name.ShouldEqual("Jeremy");
 			}
 		}
 
-		
+
 		public class CompositeKeyUser {
 			[Key]
 			public int Id { get; set; }
+
 			[Key]
 			public string Id2 { get; set; }
+
 			public string Name { get; set; }
 		}
 
@@ -170,6 +171,7 @@ namespace SimpleQuery.Tests {
 		public class User {
 			[Key]
 			public int Id { get; set; }
+
 			public string Name { get; set; }
 		}
 
@@ -188,13 +190,13 @@ namespace SimpleQuery.Tests {
 		[Table("Users")]
 		public class User4 : User {
 			public User4(int x) {
-				
 			}
 		}
 
 		[Table("Users")]
 		public class User5 {
 			public int Id { get; set; }
+
 			[NotMapped]
 			public string Name { get; set; }
 		}
@@ -202,6 +204,7 @@ namespace SimpleQuery.Tests {
 		[Table("Users")]
 		public class User6 {
 			public int Id { get; set; }
+
 			[Column("Name")]
 			public string OtherName { get; set; }
 		}
@@ -211,7 +214,5 @@ namespace SimpleQuery.Tests {
 			public int Id { get; set; }
 			public string name { get; set; }
 		}
-
-		
 	}
 }

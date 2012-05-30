@@ -1,4 +1,4 @@
-#region Licence
+#region License
 
 // Copyright (c) Jeremy Skinner (http://www.jeremyskinner.co.uk)
 // 
@@ -13,28 +13,30 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
 // See the License for the specific language governing permissions and 
 // limitations under the License.
+// 
+// The latest version of this file can be found at https://github.com/JeremySkinner/SimpleQuery
 
 #endregion
 
-namespace SimpleQuery {
-	using System;
+using System;
 
+namespace SimpleQuery {
 	public class MappingException : Exception {
 		public MappingException(string message, Exception innerException) : base(message, innerException) {
-			
 		}
 
 		public MappingException(string message) : base(message) {
-			
 		}
 
 		public static MappingException InvalidCast(string column, Exception innerException) {
-			string message = string.Format("Could not map the property '{0}' as its data type does not match the database.", column);
+			string message = string.Format("Could not map the property '{0}' as its data type does not match the database.",
+			                               column);
 			return new MappingException(message, innerException);
 		}
 
 		public static MappingException NoParameterlessConstructor(Type type) {
-			string message = "Could not find a parameterless constructor on the type '{0}'. SimpleQuery can only be used to map types that have a public, parameterless constructor.";
+			string message =
+				"Could not find a parameterless constructor on the type '{0}'. SimpleQuery can only be used to map types that have a public, parameterless constructor.";
 			message = string.Format(message, type.FullName);
 			return new MappingException(message);
 		}

@@ -1,4 +1,4 @@
-#region Licence
+#region License
 
 // Copyright (c) Jeremy Skinner (http://www.jeremyskinner.co.uk)
 // 
@@ -13,12 +13,14 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
 // See the License for the specific language governing permissions and 
 // limitations under the License.
+// 
+// The latest version of this file can be found at https://github.com/JeremySkinner/SimpleQuery
 
 #endregion
 
-namespace SimpleQuery {
-	using System;
+using System;
 
+namespace SimpleQuery {
 	[AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
 	public class NotMappedAttribute : Attribute {
 	}
