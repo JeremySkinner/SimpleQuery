@@ -46,6 +46,7 @@
     <Compile Include="AnonymousTypeDictionary.cs" />
     <Compile Include="ColumnAttribute.cs" />
     <Compile Include="Connection.cs" />
+    <Compile Include="DbConnectionExtensions.cs" />
     <Compile Include="KeyAttribute.cs" />
     <Compile Include="Mapper.cs" />
     <Compile Include="MappingException.cs" />
