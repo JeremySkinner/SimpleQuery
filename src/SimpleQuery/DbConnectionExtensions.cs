@@ -32,28 +32,30 @@ namespace SimpleQuery
 {
 	// Single-file version based on IdbConnection ext. methods
 	public static class DbConnectionExtensions {
-		public static T QuerySingle<T>(this IDbConnection conn, string commandText, object parameters = null) {
-			return Query<T>(conn, commandText, parameters).Single();
+		public static T QuerySingle<T>(this IDbConnection conn, string commandText, object parameters = null, IDbTransaction tran = null) {
+			return Query<T>(conn, commandText, parameters, tran).Single();
 		}
 
-		public static T QuerySingleOrDefault<T>(this IDbConnection conn, string commandText, object parameters = null) {
-			return Query<T>(conn, commandText, parameters).SingleOrDefault();
+		public static T QuerySingleOrDefault<T>(this IDbConnection conn, string commandText, object parameters = null, IDbTransaction tran = null) {
+			return Query<T>(conn, commandText, parameters, tran).SingleOrDefault();
 		}
 
-		public static IDataReader QueryDataReader(this IDbConnection conn, string commandText, object parameters = null) {
+		public static IDataReader QueryDataReader(this IDbConnection conn, string commandText, object parameters = null, IDbTransaction tran = null) {
 			using (var command = conn.CreateCommand()) {
 				command.CommandText = commandText;
+				if (tran != null) command.Transaction = tran;
 				AddParameters(command, parameters);
 
 				return command.ExecuteReader();
 			}
 		}
 
-		public static IEnumerable<T> Query<T>(this IDbConnection conn, string commandText, object parameters = null) {
+		public static IEnumerable<T> Query<T>(this IDbConnection conn, string commandText, object parameters = null, IDbTransaction tran = null) {
 			var results = new List<T>();
 
 			using (var command = conn.CreateCommand()) {
 				command.CommandText = commandText;
+				if (tran != null) command.Transaction = tran;
 				AddParameters(command, parameters);
 
 				if (typeof(T).IsPrimitive || typeof(T) == typeof(string) || typeof(T) == typeof(DateTime)) {
