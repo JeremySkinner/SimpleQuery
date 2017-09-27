@@ -31,100 +31,93 @@ using System.Reflection;
 namespace SimpleQuery
 {
 	// Single-file version based on IdbConnection ext. methods
-	public static class DbConnectionExtensions
-	{
-		public static T QuerySingle<T>(this IDbConnection conn, string commandText, object parameters = null)
-		{
+	public static class DbConnectionExtensions {
+		public static T QuerySingle<T>(this IDbConnection conn, string commandText, object parameters = null) {
 			return Query<T>(conn, commandText, parameters).Single();
 		}
 
-		public static T QuerySingleOrDefault<T>(this IDbConnection conn, string commandText, object parameters = null)
-		{
+		public static T QuerySingleOrDefault<T>(this IDbConnection conn, string commandText, object parameters = null) {
 			return Query<T>(conn, commandText, parameters).SingleOrDefault();
 		}
 
-		public static IEnumerable<T> Query<T>(this IDbConnection conn, string commandText, object parameters = null)
-		{
-			var results = new List<T>();
-
-			using (var command = conn.CreateCommand())
-			{
+		public static IDataReader QueryDataReader(this IDbConnection conn, string commandText, object parameters = null) {
+			using (var command = conn.CreateCommand()) {
 				command.CommandText = commandText;
 				AddParameters(command, parameters);
 
-				if (typeof(T).IsPrimitive)
-				{
+				return command.ExecuteReader();
+			}
+		}
+
+		public static IEnumerable<T> Query<T>(this IDbConnection conn, string commandText, object parameters = null) {
+			var results = new List<T>();
+
+			using (var command = conn.CreateCommand()) {
+				command.CommandText = commandText;
+				AddParameters(command, parameters);
+
+				if (typeof(T).IsPrimitive || typeof(T) == typeof(string) || typeof(T) == typeof(DateTime)) {
 					using (var reader = command.ExecuteReader()) {
-						while (reader.Read())
-						{
-							if (reader.FieldCount > 0)
-							{
+						while (reader.Read()) {
+							if (reader.FieldCount > 0) {
 								object value = reader.GetValue(0);
-								if (value == DBNull.Value)
-								{
+
+								if (value == DBNull.Value) {
 									results.Add(default(T));
-								}
-								else
-								{
+								} else {
 									results.Add((T)value);
 								}
 							}
 						}
 					}
-				}
-				else
-				{
+				} else {
 					MapComplexType(command, results);
 				}
-				
 			}
 			return results;
 		}
 
-		private static void MapComplexType<T>(IDbCommand command, List<T> results)
-		{
-			IEnumerable<string> columnNames = null;
+		private static void MapComplexType<T>(IDbCommand command, List<T> results) {
+			List<string> columnNames = null;
 
 			var mapper = Mapper<T>.Create();
 
-			using (var reader = command.ExecuteReader())
-			{
-				while (reader.Read())
-				{
-					if (columnNames == null)
-					{
+			using (var reader = command.ExecuteReader()) {
+				while (reader.Read()) {
+					if (columnNames == null) {
 						columnNames = GetColumnNames(reader).ToList();
 					}
+
 					results.Add(mapper.Map(reader, columnNames));
 				}
 			}
 		}
 
-		public static void Execute(this IDbConnection conn, string commandText, object parameters = null)
-		{
-			using (var command = conn.CreateCommand())
-			{
+		public static void Execute(this IDbConnection conn, string commandText, object parameters = null, IDbTransaction trans = null) {
+			using (var command = conn.CreateCommand()) {
+				if (trans != null)
+					command.Transaction = trans;
+
 				command.CommandText = commandText;
 				AddParameters(command, parameters);
 				command.ExecuteNonQuery();
 			}
 		}
 
-		public static int GetLastInsertId(this IDbConnection conn)
-		{
-			using (var command = conn.CreateCommand())
-			{
+		public static int GetLastInsertId(this IDbConnection conn, IDbTransaction trans = null) {
+			using (var command = conn.CreateCommand()) {
+				if (trans != null)
+					command.Transaction = trans;
+
 				command.CommandText = "SELECT cast(@@identity as int)";
-				return (int) command.ExecuteScalar();
+				return (int)command.ExecuteScalar();
 			}
 		}
 
-		private static void AddParameters(IDbCommand command, object parameters)
-		{
+		private static void AddParameters(IDbCommand command, object parameters) {
 			if (parameters == null) return;
 
-			foreach (PropertyDescriptor descriptor in TypeDescriptor.GetProperties(parameters))
-			{
+			foreach (PropertyDescriptor descriptor in TypeDescriptor.GetProperties(parameters)) {
 				var parameter = command.CreateParameter();
 				parameter.ParameterName = "@" + descriptor.Name;
 				parameter.Value = descriptor.GetValue(parameters) ?? DBNull.Value;
@@ -132,13 +125,10 @@ namespace SimpleQuery
 			}
 		}
 
-		private static IEnumerable<string> GetColumnNames(IDataRecord record)
-		{
+		private static IEnumerable<string> GetColumnNames(IDataRecord record) {
 			int i = 0;
-			while (true)
-			{
-				if (i >= record.FieldCount)
-				{
+			while (true) {
+				if (i >= record.FieldCount) {
 					yield break;
 				}
 				yield return record.GetName(i);
@@ -147,18 +137,18 @@ namespace SimpleQuery
 		}
 
 		private class Mapper<T> {
-			private readonly Func<T> factory;
-			private readonly Dictionary<string, PropertyMetadata<T>> properties;
-			private static readonly Lazy<Mapper<T>> instanceCache = new Lazy<Mapper<T>>(() => new Mapper<T>());
+			private readonly Func<T> _factory;
+			private readonly Dictionary<string, PropertyMetadata<T>> _properties;
+			private static readonly Lazy<Mapper<T>> _instanceCache = new Lazy<Mapper<T>>(() => new Mapper<T>());
 
 			public static Mapper<T> Create() {
-				return instanceCache.Value;
+				return _instanceCache.Value;
 			}
 
 			private Mapper() {
-				this.properties = new Dictionary<string, PropertyMetadata<T>>(StringComparer.InvariantCultureIgnoreCase);
+				_properties = new Dictionary<string, PropertyMetadata<T>>(StringComparer.InvariantCultureIgnoreCase);
 
-				factory = CreateActivatorDelegate();
+				_factory = CreateActivatorDelegate();
 
 				// Get all properties that are writeable without a NotMapped attribute.
 				var properties = from property in typeof(T).GetProperties()
@@ -167,17 +157,15 @@ namespace SimpleQuery
 
 				foreach (var property in properties) {
 					var propertyMetadata = new PropertyMetadata<T>(property);
-					this.properties[propertyMetadata.PropertyName] = propertyMetadata;
+					_properties[propertyMetadata.PropertyName] = propertyMetadata;
 				}
 			}
 
 			public T Map(IDataRecord record, IEnumerable<string> columns) {
-				var instance = factory();
+				var instance = _factory();
 
 				foreach (var column in columns) {
-					PropertyMetadata<T> property;
-
-					if (properties.TryGetValue(column, out property)) {
+					if (_properties.TryGetValue(column, out var property)) {
 						try {
 							property.SetValue(instance, record[column]);
 						} catch (InvalidCastException e) {
@@ -194,55 +182,28 @@ namespace SimpleQuery
 
 				// No parameterless constructor found.
 				if (constructor == null) {
-					return () => { throw MappingException.NoParameterlessConstructor(typeof(T)); };
+					return () => throw MappingException.NoParameterlessConstructor(typeof(T));
 				}
 
 				return Expression.Lambda<Func<T>>(Expression.New(constructor)).Compile();
 			}
-
-			public IEnumerable<PropertyMetadata<T>> GetIdColumns() {
-				var cols = this.properties.Where(x => x.Value.IsId).Select(x => x.Value).ToList();
-
-				if (cols.Count == 0) {
-					throw new NotSupportedException(string.Format("No PK properties were defined on type {0}.", typeof(T).Name));
-				}
-
-				return cols;
-			}
-
-			public string ConvertPropertyNameToColumnName(string propertyName) {
-				return properties.Where(x => x.Value.Property.Name == propertyName).Select(x => x.Key).SingleOrDefault();
-			}
 		}
 
 		private class PropertyMetadata<T> {
-			private readonly Action<T, object> setter;
-			private readonly Func<T, object> getter;
+			private readonly Action<T, object> _setter;
 
 			public PropertyMetadata(PropertyInfo property) {
-				this.Property = property;
-				this.setter = BuildSetterDelegate(property);
-				this.getter = BuildGetterDelegate(property);
+				_setter = BuildSetterDelegate(property);
 				PropertyName = property.Name;
 			}
 
-			public bool IsId { get; private set; }
-
-			public PropertyInfo Property { get; }
-
-			public string PropertyName { get; protected set; }
-
-			public bool IsAutoGenerated { get; internal set; }
+			public string PropertyName { get; }
 
 			public void SetValue(T instance, object value) {
 				if (value == DBNull.Value) {
 					value = null; //TODO: Handle this more robustly
 				}
-				setter(instance, value);
-			}
-
-			public object GetValue(T instance) {
-				return getter(instance);
+				_setter(instance, value);
 			}
 
 			private static Action<T, object> BuildSetterDelegate(PropertyInfo prop) {
@@ -256,17 +217,6 @@ namespace SimpleQuery
 
 				return (Action<T, object>)Expression.Lambda(setterCall, instance, argument).Compile();
 			}
-
-			private Func<T, object> BuildGetterDelegate(PropertyInfo prop) {
-				var param = Expression.Parameter(typeof(T), "x");
-				Expression expression = Expression.PropertyOrField(param, prop.Name);
-
-				if (prop.PropertyType.IsValueType)
-					expression = Expression.Convert(expression, typeof(object));
-
-				return Expression.Lambda<Func<T, object>>(expression, param)
-					.Compile();
-			}
 		}
 
 		public class MappingException : Exception {
@@ -277,18 +227,14 @@ namespace SimpleQuery
 			}
 
 			public static MappingException InvalidCast(string column, Exception innerException) {
-				string message = string.Format("Could not map the property '{0}' as its data type does not match the database.",
-					column);
+				string message = $"Could not map the property '{column}' as its data type does not match the database.";
 				return new MappingException(message, innerException);
 			}
 
 			public static MappingException NoParameterlessConstructor(Type type) {
-				string message =
-					"Could not find a parameterless constructor on the type '{0}'. SimpleQuery can only be used to map types that have a public, parameterless constructor.";
-				message = string.Format(message, type.FullName);
+				string message = $"Could not find a parameterless constructor on the type '{type.FullName}'. SimpleQuery can only be used to map types that have a public, parameterless constructor.";
 				return new MappingException(message);
 			}
 		}
-
 	}
 }
